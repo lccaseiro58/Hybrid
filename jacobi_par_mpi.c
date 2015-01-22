@@ -165,11 +165,6 @@ double CritDown(double xStart, double yStart,input_data inp,double *src, double 
     return sqrt(error)/((inp.col_offset-4));
 }
 
-
-
-/**********************************************************
- * Checks the error between numerical and exact solutions
- **********************************************************/
  
 double checkSolution(double xStart, double yStart,double *u, input_data inp)
 {
@@ -285,16 +280,6 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
     }       
 }
 
-void printArray(double* matrix,int size)
-{
-    int i;
-    for (i = 0; i < size; ++i)
-    {
-        printf(" %lf ", matrix[i]);
-    }
-    printf("\n");
-}
-
 int main(int argc, char **argv)
 {
     int lines, cols;
@@ -328,7 +313,7 @@ int main(int argc, char **argv)
     MPI_Cart_shift(my_grid,0,1,&left,&right);
     MPI_Cart_shift(my_grid,1,1,&up,&down);
 
-    //printf("P:%d My neighbors are r: %d d:%d 1:%d u:%d\n",rank,right,down,left,up);
+    printf("P:%d My neighbors are r: %d d:%d 1:%d u:%d\n",rank,right,down,left,up);
 
     input_data inp;
 
@@ -364,7 +349,7 @@ int main(int argc, char **argv)
 
     if(rank ==0)
     {
-        int flag = 1;
+        int flag = 0;
         if(flag ==1)
         {
 
@@ -407,11 +392,11 @@ int main(int argc, char **argv)
         //printf("-> %d, %d, %g, %g, %g, %d, %g, %g\n", inp.line_offset, inp.col_offset, inp.alpha, inp.relax, inp.tol, inp.mits, inp.deltaX, inp.deltaY);
 
     MPI_Datatype row;
-    MPI_Type_contiguous(inp.line_offset, MPI_DOUBLE, &row);
+    MPI_Type_contiguous(inp.col_offset, MPI_DOUBLE, &row);
     MPI_Type_commit(&row);
 
     MPI_Datatype col;
-    MPI_Type_contiguous(inp.col_offset, MPI_DOUBLE, &col);
+    MPI_Type_contiguous(inp.line_offset, MPI_DOUBLE, &col);
     MPI_Type_commit(&col);
 
     double* mlocal_old = (double*)calloc(sizeof(double), inp.line_offset*inp.col_offset);
@@ -450,29 +435,28 @@ int main(int argc, char **argv)
         if(up >= 0 && up != MPI_PROC_NULL)
         {
             send_data(up, UP, mlocal_old, inp, row, req,my_grid);
-            //printf("Data sent from %d to %d\n", rank,up);
+            printf("Data sent from %d to %d\n", rank,up);
         }
         if (down >= 0 && down != MPI_PROC_NULL)
         {
             send_data(down, DOWN, mlocal_old, inp, row, req,my_grid);
-            //printf("Data sent from %d to %d\n", rank,down);
+            printf("Data sent from %d to %d\n", rank,down);
 
         }
         if (left >= 0 && left != MPI_PROC_NULL)
         {
             send_data(left, LEFT, mlocal_old, inp, col, req,my_grid);
-            //printf("Data sent from %d to %d\n", rank,left);
+            printf("Data sent from %d to %d\n", rank,left);
 
         }
 
         if (right >= 0 && right != MPI_PROC_NULL)
         {
             send_data(right, RIGHT, mlocal_old, inp, col, req,my_grid);
-            //printf("Data sent from %d to %d\n", rank,right);
+            printf("Data sent from %d to %d\n", rank,right);
 
         }
 
-        //errorNC = NonCrit(1-((rank/tam)*(inp.deltaX*inp.col_offset)), -1+((rank%tam)*(inp.deltaY*inp.line_offset)), mlocal_old , mlocal_new,inp);
         errorNC = NonCrit(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY), mlocal_old , mlocal_new,inp);
         //printf("%g\n", errorNC);
         if(down >= 0 && down != MPI_PROC_NULL)

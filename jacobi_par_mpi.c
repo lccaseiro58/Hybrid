@@ -435,25 +435,25 @@ int main(int argc, char **argv)
         if(up >= 0 && up != MPI_PROC_NULL)
         {
             send_data(up, UP, mlocal_old, inp, row, req,my_grid);
-            printf("Data sent from %d to %d\n", rank,up);
+            //printf("Data sent from %d to %d\n", rank,up);
         }
         if (down >= 0 && down != MPI_PROC_NULL)
         {
             send_data(down, DOWN, mlocal_old, inp, row, req,my_grid);
-            printf("Data sent from %d to %d\n", rank,down);
+            //printf("Data sent from %d to %d\n", rank,down);
 
         }
         if (left >= 0 && left != MPI_PROC_NULL)
         {
             send_data(left, LEFT, mlocal_old, inp, col, req,my_grid);
-            printf("Data sent from %d to %d\n", rank,left);
+            //printf("Data sent from %d to %d\n", rank,left);
 
         }
 
         if (right >= 0 && right != MPI_PROC_NULL)
         {
             send_data(right, RIGHT, mlocal_old, inp, col, req,my_grid);
-            printf("Data sent from %d to %d\n", rank,right);
+            //printf("Data sent from %d to %d\n", rank,right);
 
         }
 

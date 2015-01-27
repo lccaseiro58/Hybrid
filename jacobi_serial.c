@@ -135,7 +135,7 @@ int main(int argc, char **argv)
     alpha = 0.8;
     relax = 1.0;
     tol = 1e-10;
-    mits = 1000000;
+    mits = 10000;
 #endif
     printf("-> %d, %d, %g, %g, %g, %d\n", n, m, alpha, relax, tol, mits);
 
@@ -161,14 +161,14 @@ int main(int argc, char **argv)
     iterationCount = 0;
     error = HUGE_VAL;
 
-    timeval start, end;
+    struct timeval start, end;
     gettimeofday(&start, NULL);
     
     /* Iterate as long as it takes to meet the convergence criterion */
     while (iterationCount < maxIterationCount && error > maxAcceptableError)
     {
    //printf("Iteration %i\n", iterationCount);
-   error = one_jacobi_iteration(xLeft, yUp,
+            error = one_jacobi_iteration(xLeft, yUp,
                  n+2, m+2,
                  u_old, u,
                  deltaX, deltaY,
@@ -181,15 +181,10 @@ int main(int argc, char **argv)
    u = tmp;
     }
     printf("Residual %g\n",error);
-
+    double absoluteError;
 
     // u_old holds the solution after the most recent buffers swap
-    double absoluteError = checkSolution(xLeft, yUp,
-                n+2, m+2,
-                u_old,
-                deltaX, deltaY,
-                alpha);
-
+    absoluteError = checkSolution(xLeft, yUp, n+2, m+2,u_old,deltaX, deltaY,alpha);
     gettimeofday(&end, NULL);
 
     printf("The error of the iterative solution is %g\n", absoluteError);

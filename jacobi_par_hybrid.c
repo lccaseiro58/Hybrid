@@ -478,6 +478,7 @@ int main(int argc, char **argv)
         //{
             //# pragma omp section nowait
             //{
+                
                 # pragma omp single nowait
                 if(up >= 0 && up != MPI_PROC_NULL)
                 {
@@ -506,7 +507,7 @@ int main(int argc, char **argv)
                     send_data(right, RIGHT, mlocal_old, inp, col, req,my_grid);
                     //printf("Data sent from %d to %d\n", rank,right);
                 }
-
+                errorNC = NonCrit(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY), mlocal_old , mlocal_new,inp);
                 # pragma omp barrier
 
                 # pragma omp single nowait
@@ -560,7 +561,6 @@ int main(int argc, char **argv)
 
             //# pragma omp section nowait
             //{
-                errorNC = NonCrit(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY), mlocal_old , mlocal_new,inp);
                 //printf("%g\n", errorNC);
             //}
         //}

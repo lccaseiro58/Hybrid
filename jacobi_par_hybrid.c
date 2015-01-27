@@ -508,7 +508,6 @@ int main(int argc, char **argv)
                     //printf("Data sent from %d to %d\n", rank,right);
                 }
                 errorNC = NonCrit(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY), mlocal_old , mlocal_new,inp);
-                # pragma omp barrier
 
                 # pragma omp single nowait
                 if(down >= 0 && down != MPI_PROC_NULL)

@@ -37,7 +37,8 @@ double NonCrit(double xStart, double yStart, double *src, double *dst, input_dat
     double cx = 1.0/(inp.deltaX*inp.deltaX);
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
-    # pragma omp for collapse(2)
+
+    # pragma omp parallel for num_threads(inp.thread_count) collapse(2) reduction(+:error)
     for (int i = 2; i < inp.line_offset - 2 ; ++i)
     {       
         for (int j = 2; j < inp.col_offset -2; ++j)
@@ -47,8 +48,7 @@ double NonCrit(double xStart, double yStart, double *src, double *dst, input_dat
             double f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
             double updateVal = ((SRC(i-1,j) + SRC(i+1,j))*cx + (SRC(i,j-1)+SRC(i,j+1))*cy + SRC(i,j)*cc - f) /cc;
             DST(i,j) = SRC(i,j) - inp.relax*updateVal;
-            # pragma omp atomic
-            error += updateVal*updateVal;
+                error += updateVal*updateVal;    
         }
     }
     return sqrt(error)/((inp.line_offset-4)*(inp.col_offset-4));
@@ -65,7 +65,7 @@ double CritLeft(double xStart, double yStart,input_data inp,double *src, double 
 
     double fX = xStart;
 
-    # pragma omp for
+    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
     for(int i = 1; i < inp.line_offset - 1 ;++i)
     {
         double fY = yStart - (i - 1)*inp.deltaY;
@@ -74,7 +74,7 @@ double CritLeft(double xStart, double yStart,input_data inp,double *src, double 
         double updateVal = ((SRC(1,i-1) + SRC(1,i+1))*cx + (SRC(0,i)+SRC(2,i))*cy + SRC(1,i)*cc - f) /cc;
 
         DST(i,0) = SRC(0,1) - inp.relax*updateVal;
-        # pragma omp atomic
+
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.line_offset-2));
@@ -89,7 +89,7 @@ double CritRight(double xStart, double yStart,input_data inp,double *src, double
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
 
-    # pragma omp for
+    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
     for(int i = 1; i < inp.line_offset -1 ;++i)
     {
         double fX = xStart + (inp.col_offset-2)*inp.deltaX;
@@ -100,7 +100,7 @@ double CritRight(double xStart, double yStart,input_data inp,double *src, double
                         + (SRC(inp.col_offset-3,i)+SRC(inp.col_offset-1,i))*cy + SRC(inp.col_offset - 2,i)*cc - f) /cc;
 
         DST(inp.col_offset - 2,i) = SRC(inp.col_offset - 2,i) - inp.relax*updateVal;
-        # pragma omp atomic
+
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.line_offset-2));
@@ -115,7 +115,7 @@ double CritUp(double xStart, double yStart,input_data inp,double *src, double *d
     double cc = -2.0*cx-2.0*cy-inp.alpha;
     double fY = yStart;
 
-    # pragma omp for
+    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
     for(int j = 2; j < inp.col_offset -2 ;++j)
     {       
         double fX = xStart + (j-1)*inp.deltaX;
@@ -124,7 +124,7 @@ double CritUp(double xStart, double yStart,input_data inp,double *src, double *d
         double updateVal = ((SRC(j,0) + SRC(j,2))*cx + (SRC(j-1,1)+SRC(j+1,1))*cy + SRC(j,1)*cc - f) /cc;
 
         DST(j,1) = SRC(j,1) - inp.relax*updateVal;
-        # pragma omp atomic
+
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.col_offset-4));
@@ -138,7 +138,7 @@ double CritDown(double xStart, double yStart,input_data inp,double *src, double 
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
-    # pragma omp for
+    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
     for(int j = 2; j < inp.col_offset - 2 ;++j)
     {
         double fY = yStart - (inp.line_offset-2)*inp.deltaY;
@@ -149,7 +149,7 @@ double CritDown(double xStart, double yStart,input_data inp,double *src, double 
                         + SRC(j+1,inp.line_offset-2))*cy + SRC(j,inp.line_offset-2)*cc - f) /cc;
 
         DST(j,inp.line_offset-2) = SRC(j,inp.line_offset-2) - inp.relax*updateVal;
-        # pragma omp atomic
+
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.col_offset-4));
@@ -197,7 +197,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == UP)
     {
         send = (double*)calloc(sizeof(double), inp.col_offset);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 0; i < inp.col_offset; ++i)
         {
             send[i] = matrix[i];
@@ -207,7 +207,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == DOWN)
     {
         send = (double*)calloc(sizeof(double), inp.col_offset);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 0; i < inp.col_offset; ++i)
         {
             send[i] = matrix[i+(inp.col_offset * (inp.line_offset-1))];
@@ -217,7 +217,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == LEFT)
     {
         send = (double*)calloc(sizeof(double), inp.line_offset);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 0; i < inp.line_offset; ++i)
         {
             send[i] = matrix[i*inp.col_offset];
@@ -227,7 +227,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == RIGHT)
     {
         send = (double*)calloc(sizeof(double), inp.line_offset);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 0; i < inp.line_offset; ++i)
         {
             send[i] = matrix[(i*inp.col_offset) + (inp.line_offset-1)];
@@ -245,7 +245,7 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.col_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 1; i < inp.col_offset - 1; ++i)
         {
             matrix[i] = recv[i];
@@ -256,7 +256,7 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.col_offset);      
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 1; i < inp.col_offset - 1; ++i)
         {
             matrix[(inp.col_offset*(inp.line_offset - 1)) + i] = recv[i];
@@ -267,7 +267,7 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.line_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 0; i < inp.line_offset; ++i)
         {
             matrix[(inp.line_offset - 1) + inp.col_offset*i] = recv[i];
@@ -279,13 +279,14 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.line_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for
+        # pragma omp parallel for num_threads(inp.thread_count)
         for (int i = 0; i < inp.line_offset; ++i)
         {
             matrix[inp.col_offset*i] = recv[i];
         }        
     }       
 }
+
 
 int main(int argc, char **argv)
 {
@@ -407,6 +408,7 @@ int main(int argc, char **argv)
 
     omp_set_num_threads(8);
     omp_set_dynamic(0);
+    printf("%d\n",omp_get_num_threads());
 
     MPI_Datatype row;
     MPI_Type_contiguous(inp.line_offset, MPI_DOUBLE, &row);
@@ -444,103 +446,99 @@ int main(int argc, char **argv)
     //printf("My rand is %d and my coords are x = %d and y = %d\n",rank, coords[0],coords[1]);
 
     // Iterate as long as it takes to meet the convergence criterion
-    # pragma omp parallel
     while (iterationCount < maxIterationCount && error > maxAcceptableError)
     {
-        //# pragma omp parallel sections
-        //{
-            //# pragma omp section nowait
-            //{
+        # pragma omp parallel sections
+        {
+            # pragma omp section
+            {
                 
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if(up >= 0 && up != MPI_PROC_NULL)
                 {
-                    # pragma omp task
+                    //# pragma omp task
                     send_data(up, UP, mlocal_old, inp, row, req,my_grid);
-                    printf("Data sent from %d to %d\n", rank,up);
+                    //printf("Data sent from %d to %d\n", rank,up);
                 }
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if (down >= 0 && down != MPI_PROC_NULL)
                 {
-                    # pragma omp task
+                    //# pragma omp task
                     send_data(down, DOWN, mlocal_old, inp, row, req,my_grid);
-                    printf("Data sent from %d to %d\n", rank,down);
+                    //printf("Data sent from %d to %d\n", rank,down);
                 }
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if (left >= 0 && left != MPI_PROC_NULL)
                 {
-                    # pragma omp task
+                    //# pragma omp task
                     send_data(left, LEFT, mlocal_old, inp, col, req,my_grid);
-                    printf("Data sent from %d to %d\n", rank,left);
+                    //printf("Data sent from %d to %d\n", rank,left);
                 }
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if (right >= 0 && right != MPI_PROC_NULL)
                 {
-                    # pragma omp task
+                    //# pragma omp task
                     send_data(right, RIGHT, mlocal_old, inp, col, req,my_grid);
-                    printf("Data sent from %d to %d\n", rank,right);
+                    //printf("Data sent from %d to %d\n", rank,right);
                 }
 
-                errorNC = NonCrit(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY), mlocal_old , mlocal_new,inp);
 
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if(down >= 0 && down != MPI_PROC_NULL)
                 {
-                    # pragma omp task
-                    {
+                    //# pragma omp task
+                    //{
                         receive(down,DOWN,mlocal_old,inp,row,req,stat,my_grid);
-                        # pragma omp taskwait
+                        //# pragma omp taskwait
                         errorCD=CritDown(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY),inp, mlocal_old , mlocal_new);
                         //printf("%g\n", errorCD);
-                    }
+                    //}
                 }
 
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if(right >= 0 && right != MPI_PROC_NULL)
                 {
-                    # pragma omp task
-                    {
+                    //# pragma omp task
+                    //{
                         receive(right,RIGHT,mlocal_old,inp,col,req,stat,my_grid);
-                        # pragma omp taskwait
+                        //# pragma omp taskwait
                         errorCR=CritRight(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY),inp,mlocal_old, mlocal_new);
                         //printf("%g\n", errorCR);
-                    }
+                    //}
                 }   
 
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if(up >= 0 && up != MPI_PROC_NULL)
                 {
-                    # pragma omp task
-                    {
+                    //# pragma omp task
+                    //{
                         receive(up,UP,mlocal_old,inp,row,req,stat,my_grid);
-                        # pragma omp taskwait
+                        //# pragma omp taskwait
                         errorCU=CritUp(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY),inp,mlocal_old,mlocal_new);
                         //printf("%g\n", errorCU);
-                    }
+                    //}
                 }
 
-                # pragma omp single nowait
+                //# pragma omp single nowait
                 if(left >= 0 && left != MPI_PROC_NULL)
                 {
-                    # pragma omp task
-                    {
+                    //# pragma omp task
+                    //{
                         receive(left,LEFT,mlocal_old,inp,col,req,stat,my_grid);
-                        # pragma omp taskwait
+                        //# pragma omp taskwait
                         errorCL=CritLeft(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY),inp,mlocal_old,mlocal_new);
                         //printf("%g\n", errorCL);
-                    }
+                    //}
                 }
-                printf("Pass\n");
-            //}
+            }
 
-            //# pragma omp section nowait
-            //{
-                //printf("%g\n", errorNC);
-            //}
-        //}
-        errorNC += errorCU + errorCR + errorCL + errorCD;
+            # pragma omp section
+            {
+                errorNC = NonCrit(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY), mlocal_old , mlocal_new,inp);
+            }
+        }
+        //errorNC += errorCU + errorCR + errorCL + errorCD;
         iterationCount++;
-        //printf("Passou rank: %d\n", rank);
         mlocal_old = mlocal_new;
         MPI_Allreduce(&errorNC,&error,1,MPI_DOUBLE,MPI_SUM,my_grid);
     }

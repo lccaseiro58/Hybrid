@@ -32,28 +32,22 @@ typedef struct in{
 double NonCrit(double xStart, double yStart, double *src, double *dst, input_data inp)
 {
 
-    int i, j;
-    double fX, fY;
     double error = 0.0;
-    double updateVal;
-    double f;
 
     double cx = 1.0/(inp.deltaX*inp.deltaX);
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
-
-    # pragma omp for collapse(2) default(none) \
-                    shared(src,dst,yStart,xStart,inp,cx,cy,cc) private(i,j,fX,fY,f,updateVal) \
-                    reduction(+:error)
-    for (i = 2; i < inp.line_offset - 2 ; ++i)
+    # pragma omp for collapse(2)
+    for (int i = 2; i < inp.line_offset - 2 ; ++i)
     {       
-        for (j = 2; j < inp.col_offset -2; ++j)
+        for (int j = 2; j < inp.col_offset -2; ++j)
         {
-            fY = yStart - (i-1)*inp.deltaY;
-            fX = xStart + (j-1)*inp.deltaX;
-            f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
-            updateVal = ((SRC(i-1,j) + SRC(i+1,j))*cx + (SRC(i,j-1)+SRC(i,j+1))*cy + SRC(i,j)*cc - f) /cc;
+            double fY = yStart - (i-1)*inp.deltaY;
+            double fX = xStart + (j-1)*inp.deltaX;
+            double f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
+            double updateVal = ((SRC(i-1,j) + SRC(i+1,j))*cx + (SRC(i,j-1)+SRC(i,j+1))*cy + SRC(i,j)*cc - f) /cc;
             DST(i,j) = SRC(i,j) - inp.relax*updateVal;
+            # pragma omp atomic
             error += updateVal*updateVal;
         }
     }
@@ -63,28 +57,24 @@ double NonCrit(double xStart, double yStart, double *src, double *dst, input_dat
 double CritLeft(double xStart, double yStart,input_data inp,double *src, double *dst)
 {
 
-    double fX, fY;
     double error = 0.0;
-    double updateVal;
-    double f;
 
     double cx = 1.0/(inp.deltaX*inp.deltaX);
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
-    int i;
-    fX = xStart; 
-    # pragma omp for default(none) \
-                    shared(src,dst,yStart,xStart,inp,cx,cy,cc,fX) private(i,fY,f,updateVal) \
-                    reduction(+:error)
-    for(i = 1; i < inp.line_offset - 1 ;++i)
-    {
-        fY = yStart - (i - 1)*inp.deltaY;
-        f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
+    double fX = xStart;
 
-        updateVal = ((SRC(1,i-1) + SRC(1,i+1))*cx + (SRC(0,i)+SRC(2,i))*cy + SRC(1,i)*cc - f) /cc;
+    # pragma omp for
+    for(int i = 1; i < inp.line_offset - 1 ;++i)
+    {
+        double fY = yStart - (i - 1)*inp.deltaY;
+        double f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
+
+        double updateVal = ((SRC(1,i-1) + SRC(1,i+1))*cx + (SRC(0,i)+SRC(2,i))*cy + SRC(1,i)*cc - f) /cc;
 
         DST(i,0) = SRC(0,1) - inp.relax*updateVal;
+        # pragma omp atomic
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.line_offset-2));
@@ -92,29 +82,25 @@ double CritLeft(double xStart, double yStart,input_data inp,double *src, double 
 
 double CritRight(double xStart, double yStart,input_data inp,double *src, double *dst)
 {
-    double fX, fY;
     double error = 0.0;
-    double updateVal;
-    double f;
 
     double cx = 1.0/(inp.deltaX*inp.deltaX);
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
-    int i;
-    # pragma omp for default(none) \
-                    shared(src,dst,yStart,xStart,inp,cx,cy,cc) private(i,fX,fY,f,updateVal) \
-                    reduction(+:error)
-    for(i = 1; i < inp.line_offset -1 ;++i)
-    {
-        fX = xStart + (inp.col_offset-2)*inp.deltaX;
-        fY = yStart - (i-1)*inp.deltaY;
-        f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
 
-        updateVal = ((SRC(inp.col_offset - 2,i-1) + SRC(inp.col_offset - 2,i+1))*cx 
+    # pragma omp for
+    for(int i = 1; i < inp.line_offset -1 ;++i)
+    {
+        double fX = xStart + (inp.col_offset-2)*inp.deltaX;
+        double fY = yStart - (i-1)*inp.deltaY;
+        double f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
+
+        double updateVal = ((SRC(inp.col_offset - 2,i-1) + SRC(inp.col_offset - 2,i+1))*cx 
                         + (SRC(inp.col_offset-3,i)+SRC(inp.col_offset-1,i))*cy + SRC(inp.col_offset - 2,i)*cc - f) /cc;
 
         DST(inp.col_offset - 2,i) = SRC(inp.col_offset - 2,i) - inp.relax*updateVal;
+        # pragma omp atomic
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.line_offset-2));
@@ -122,29 +108,23 @@ double CritRight(double xStart, double yStart,input_data inp,double *src, double
 
 double CritUp(double xStart, double yStart,input_data inp,double *src, double *dst)
 {
-    double fX, fY;
     double error = 0.0;
-    double updateVal;
-    double f;
 
     double cx = 1.0/(inp.deltaX*inp.deltaX);
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
+    double fY = yStart;
 
-    int j;
+    # pragma omp for
+    for(int j = 2; j < inp.col_offset -2 ;++j)
+    {       
+        double fX = xStart + (j-1)*inp.deltaX;
+        double f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
 
-    # pragma omp for default(none) \
-                    shared(src,dst,yStart,xStart,inp,cx,cy,cc) private(j,fX,fY,f,updateVal) \
-                    reduction(+:error)
-    for(j = 2; j < inp.col_offset -2 ;++j)
-    {
-        fY = yStart;
-        fX = xStart + (j-1)*inp.deltaX;
-        f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
-
-        updateVal = ((SRC(j,0) + SRC(j,2))*cx + (SRC(j-1,1)+SRC(j+1,1))*cy + SRC(j,1)*cc - f) /cc;
+        double updateVal = ((SRC(j,0) + SRC(j,2))*cx + (SRC(j-1,1)+SRC(j+1,1))*cy + SRC(j,1)*cc - f) /cc;
 
         DST(j,1) = SRC(j,1) - inp.relax*updateVal;
+        # pragma omp atomic
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.col_offset-4));
@@ -152,29 +132,24 @@ double CritUp(double xStart, double yStart,input_data inp,double *src, double *d
 
 double CritDown(double xStart, double yStart,input_data inp,double *src, double *dst)
 {
-    double fX, fY;
     double error = 0.0;
-    double updateVal;
-    double f;
+
     double cx = 1.0/(inp.deltaX*inp.deltaX);
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
-    int j;
-    
-    # pragma omp for default(none) \
-                    shared(src,dst,yStart,xStart,inp,cx,cy,cc) private(j,fX,fY,f,updateVal) \
-                    reduction(+:error)
-    for(j = 2; j < inp.col_offset - 2 ;++j)
+    # pragma omp for
+    for(int j = 2; j < inp.col_offset - 2 ;++j)
     {
-        fY = yStart - (inp.line_offset-2)*inp.deltaY;
-        fX = xStart + (j-1)*inp.deltaX;
-        f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
+        double fY = yStart - (inp.line_offset-2)*inp.deltaY;
+        double fX = xStart + (j-1)*inp.deltaX;
+        double f = -inp.alpha * (1.0-fX*fX) * (1.0-fY*fY) - 2.0*(1.0-fX*fX) - 2.0*(1.0-fY*fY);
 
-        updateVal = ((SRC(j,inp.line_offset-3) + SRC(j,inp.line_offset-1))*cx + (SRC(j-1,inp.line_offset-2)
+        double updateVal = ((SRC(j,inp.line_offset-3) + SRC(j,inp.line_offset-1))*cx + (SRC(j-1,inp.line_offset-2)
                         + SRC(j+1,inp.line_offset-2))*cy + SRC(j,inp.line_offset-2)*cc - f) /cc;
 
         DST(j,inp.line_offset-2) = SRC(j,inp.line_offset-2) - inp.relax*updateVal;
+        # pragma omp atomic
         error += updateVal*updateVal;
     }
     return sqrt(error)/((inp.col_offset-4));
@@ -218,13 +193,12 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(recv == MPI_PROC_NULL || recv<0)
         return;
 
-    int i;
     double* send = NULL;
     if(direction == UP)
     {
         send = (double*)calloc(sizeof(double), inp.col_offset);
-        # pragma omp for default(none) shared(send,matrix,inp) private(i)
-        for (i = 0; i < inp.col_offset; ++i)
+        # pragma omp for
+        for (int i = 0; i < inp.col_offset; ++i)
         {
             send[i] = matrix[i];
         }
@@ -233,8 +207,8 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == DOWN)
     {
         send = (double*)calloc(sizeof(double), inp.col_offset);
-        # pragma omp for default(none) shared(send,matrix,inp) private(i)
-        for (i = 0; i < inp.col_offset; ++i)
+        # pragma omp for
+        for (int i = 0; i < inp.col_offset; ++i)
         {
             send[i] = matrix[i+(inp.col_offset * (inp.line_offset-1))];
         }
@@ -243,8 +217,8 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == LEFT)
     {
         send = (double*)calloc(sizeof(double), inp.line_offset);
-        # pragma omp for default(none) shared(send,matrix,inp) private(i)
-        for (i = 0; i < inp.line_offset; ++i)
+        # pragma omp for
+        for (int i = 0; i < inp.line_offset; ++i)
         {
             send[i] = matrix[i*inp.col_offset];
         }
@@ -253,8 +227,8 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == RIGHT)
     {
         send = (double*)calloc(sizeof(double), inp.line_offset);
-        # pragma omp for default(none) shared(send,matrix,inp) private(i)
-        for (i = 0; i < inp.line_offset; ++i)
+        # pragma omp for
+        for (int i = 0; i < inp.line_offset; ++i)
         {
             send[i] = matrix[(i*inp.col_offset) + (inp.line_offset-1)];
         }
@@ -266,14 +240,13 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
 void receive(int sender,int direction,double *matrix, input_data inp, MPI_Datatype type, MPI_Request req[8],MPI_Status stat[8],MPI_Comm my_grid)
 {
     double* recv = NULL;
-    int i;
     if(direction == UP)
     {
         recv = (double*)calloc(sizeof(double), inp.col_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for default(none) shared(recv,matrix,inp) private(i)
-        for (i = 1; i < inp.col_offset - 1; ++i)
+        # pragma omp for
+        for (int i = 1; i < inp.col_offset - 1; ++i)
         {
             matrix[i] = recv[i];
         }
@@ -283,8 +256,8 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.col_offset);      
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for default(none) shared(recv,matrix,inp) private(i)
-        for (i = 1; i < inp.col_offset - 1; ++i)
+        # pragma omp for
+        for (int i = 1; i < inp.col_offset - 1; ++i)
         {
             matrix[(inp.col_offset*(inp.line_offset - 1)) + i] = recv[i];
         }        
@@ -294,8 +267,8 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.line_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for default(none) shared(recv,matrix,inp) private(i)
-        for (i = 0; i < inp.line_offset; ++i)
+        # pragma omp for
+        for (int i = 0; i < inp.line_offset; ++i)
         {
             matrix[(inp.line_offset - 1) + inp.col_offset*i] = recv[i];
         }
@@ -306,8 +279,8 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.line_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp for default(none) shared(recv,matrix,inp) private(i)
-        for (i = 0; i < inp.line_offset; ++i)
+        # pragma omp for
+        for (int i = 0; i < inp.line_offset; ++i)
         {
             matrix[inp.col_offset*i] = recv[i];
         }        
@@ -432,8 +405,8 @@ int main(int argc, char **argv)
 
     MPI_Bcast(&(inp),1,input_type,0,my_grid);
 
-    if(rank == 0)
-        //printf("-> %d, %d, %g, %g, %g, %d, %g, %g\n", inp.line_offset, inp.col_offset, inp.alpha, inp.relax, inp.tol, inp.mits, inp.deltaX, inp.deltaY);
+    omp_set_num_threads(8);
+    omp_set_dynamic(0);
 
     MPI_Datatype row;
     MPI_Type_contiguous(inp.line_offset, MPI_DOUBLE, &row);
@@ -470,8 +443,8 @@ int main(int argc, char **argv)
     MPI_Cart_coords(my_grid,rank,2,coords);
     //printf("My rand is %d and my coords are x = %d and y = %d\n",rank, coords[0],coords[1]);
 
-
     // Iterate as long as it takes to meet the convergence criterion
+    # pragma omp parallel
     while (iterationCount < maxIterationCount && error > maxAcceptableError)
     {
         //# pragma omp parallel sections
@@ -484,29 +457,30 @@ int main(int argc, char **argv)
                 {
                     # pragma omp task
                     send_data(up, UP, mlocal_old, inp, row, req,my_grid);
-                    //printf("Data sent from %d to %d\n", rank,up);
+                    printf("Data sent from %d to %d\n", rank,up);
                 }
                 # pragma omp single nowait
                 if (down >= 0 && down != MPI_PROC_NULL)
                 {
                     # pragma omp task
                     send_data(down, DOWN, mlocal_old, inp, row, req,my_grid);
-                    //printf("Data sent from %d to %d\n", rank,down);
+                    printf("Data sent from %d to %d\n", rank,down);
                 }
                 # pragma omp single nowait
                 if (left >= 0 && left != MPI_PROC_NULL)
                 {
                     # pragma omp task
                     send_data(left, LEFT, mlocal_old, inp, col, req,my_grid);
-                    //printf("Data sent from %d to %d\n", rank,left);
+                    printf("Data sent from %d to %d\n", rank,left);
                 }
                 # pragma omp single nowait
                 if (right >= 0 && right != MPI_PROC_NULL)
                 {
                     # pragma omp task
                     send_data(right, RIGHT, mlocal_old, inp, col, req,my_grid);
-                    //printf("Data sent from %d to %d\n", rank,right);
+                    printf("Data sent from %d to %d\n", rank,right);
                 }
+
                 errorNC = NonCrit(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY), mlocal_old , mlocal_new,inp);
 
                 # pragma omp single nowait
@@ -556,6 +530,7 @@ int main(int argc, char **argv)
                         //printf("%g\n", errorCL);
                     }
                 }
+                printf("Pass\n");
             //}
 
             //# pragma omp section nowait

@@ -280,6 +280,18 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
     }       
 }
 
+void update(double *dst, double *src, input_data inp)
+{
+    int i,j;
+    for(i=0;i<inp.line_offset;i++)
+    {
+        for(j=0;j<inp.col_offset;j++)
+        {
+            DST(i,j) = SRC(i,j);    
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     int lines, cols;
@@ -349,7 +361,7 @@ int main(int argc, char **argv)
 
     if(rank ==0)
     {
-        int flag = 0;
+        int flag = 1;
         if(flag ==1)
         {
 
@@ -362,7 +374,7 @@ int main(int argc, char **argv)
             {
                 fscanf(f, "%d %d %lf %lf %lf %d", &lines, &cols, &(inp.alpha),&(inp.relax),&(inp.tol),&(inp.mits));
                 fclose(f);
-                //printf("-> %d, %d, %lf, %lf, %.12lf, %d\n", lines, cols, inp.alpha, inp.relax, inp.tol, inp.mits);            
+                printf("-> %d, %d, %lf, %lf, %.12lf, %d\n", lines, cols, inp.alpha, inp.relax, inp.tol, inp.mits);            
             }
         }   
         else
@@ -492,7 +504,7 @@ int main(int argc, char **argv)
         errorNC += errorCU + errorCR + errorCL + errorCD;
         iterationCount++;
         //printf("Passou rank: %d\n", rank);
-        mlocal_old = mlocal_new;
+        update(mlocal_old,mlocal_new,inp);
 
         MPI_Allreduce(&errorNC,&error,1,MPI_DOUBLE,MPI_SUM,my_grid);
     }
@@ -501,10 +513,10 @@ int main(int argc, char **argv)
     check_error = checkSolution(-1 + (coords[0]*inp.col_offset*inp.deltaX), 1 - (coords[1]*inp.line_offset*inp.deltaY),mlocal_new,inp);
     double final_error = 0;
     MPI_Reduce(&check_error,&final_error,1,MPI_DOUBLE,MPI_SUM,0,my_grid);
+    finish=MPI_Wtime();
 
     if(rank == 0)
     {
-        finish=MPI_Wtime();
         printf("tempo decorrido: %f\n", finish - start);
         printf("Iteration %i\n", iterationCount);
         printf("Residual %g, rank: %d\n",error,rank);

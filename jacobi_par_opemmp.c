@@ -34,7 +34,7 @@ double one_jacobi_iteration(double xStart, double yStart, input_data inp, double
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
 
-    # pragma omp parallel num_threads(inp.thread_count) default(none) \
+    # pragma omp parallel default(none) \
                     shared(src,dst,yStart,xStart,inp,cx,cy,cc) private(i,j,fX,fY,f,updateVal) \
                     reduction(+:error)
     # pragma omp for collapse(2)
@@ -60,7 +60,7 @@ double checkSolution(double xStart, double yStart, input_data inp, double *u)
     double fX, fY;
     double localError, error = 0.0;
 
-    # pragma omp parallel num_threads(inp.thread_count) default(none) \
+    # pragma omp parallel default(none) \
                 shared(u,inp,yStart,xStart) private(i,j,fX,fY,localError) \
                 reduction(+:error)
     # pragma omp for collapse(2)
@@ -80,7 +80,7 @@ double checkSolution(double xStart, double yStart, input_data inp, double *u)
 void update(double *dst, double *src, input_data inp)
 {
     int i,j;
-    # pragma omp parallel for num_threads(inp.thread_count) shared(src,dst) private(i,j) collapse(2)
+    # pragma omp parallel for shared(src,dst) private(i,j) collapse(2)
     for(i=0;i<inp.lines;i++)
     {
         for(j=0;j<inp.cols;j++)
@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
     double end = omp_get_wtime();
     printf("Iteration %i\n", iterationCount);
     printf("The error of the iterative solution is %g\n", absoluteError);
-    printf("Time for %d threads: \t %f \n",inp.thread_count, end-start);
+    printf("Time: \t %f \n", end-start);
 
     free(src);
     free(dst); 

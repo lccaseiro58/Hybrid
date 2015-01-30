@@ -38,7 +38,7 @@ double NonCrit(double xStart, double yStart, double *src, double *dst, input_dat
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
-    # pragma omp parallel for num_threads(inp.thread_count) collapse(2) reduction(+:error)
+    # pragma omp parallel for collapse(2) reduction(+:error)
     for (int i = 2; i < inp.line_offset - 2 ; ++i)
     {       
         for (int j = 2; j < inp.col_offset -2; ++j)
@@ -65,7 +65,7 @@ double CritLeft(double xStart, double yStart,input_data inp,double *src, double 
 
     double fX = xStart;
 
-    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
+    # pragma omp parallel for reduction(+:error)
     for(int i = 1; i < inp.line_offset - 1 ;++i)
     {
         double fY = yStart - (i - 1)*inp.deltaY;
@@ -89,7 +89,7 @@ double CritRight(double xStart, double yStart,input_data inp,double *src, double
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
 
-    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
+    # pragma omp parallel for reduction(+:error)
     for(int i = 1; i < inp.line_offset -1 ;++i)
     {
         double fX = xStart + (inp.col_offset-2)*inp.deltaX;
@@ -115,7 +115,7 @@ double CritUp(double xStart, double yStart,input_data inp,double *src, double *d
     double cc = -2.0*cx-2.0*cy-inp.alpha;
     double fY = yStart;
 
-    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
+    # pragma omp parallel for reduction(+:error)
     for(int j = 2; j < inp.col_offset -2 ;++j)
     {       
         double fX = xStart + (j-1)*inp.deltaX;
@@ -138,7 +138,7 @@ double CritDown(double xStart, double yStart,input_data inp,double *src, double 
     double cy = 1.0/(inp.deltaY*inp.deltaY);
     double cc = -2.0*cx-2.0*cy-inp.alpha;
 
-    # pragma omp parallel for num_threads(inp.thread_count) reduction(+:error)
+    # pragma omp parallel for reduction(+:error)
     for(int j = 2; j < inp.col_offset - 2 ;++j)
     {
         double fY = yStart - (inp.line_offset-2)*inp.deltaY;
@@ -197,7 +197,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == UP)
     {
         send = (double*)calloc(sizeof(double), inp.col_offset);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 0; i < inp.col_offset; ++i)
         {
             send[i] = matrix[i];
@@ -207,7 +207,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == DOWN)
     {
         send = (double*)calloc(sizeof(double), inp.col_offset);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 0; i < inp.col_offset; ++i)
         {
             send[i] = matrix[i+(inp.col_offset * (inp.line_offset-1))];
@@ -217,7 +217,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == LEFT)
     {
         send = (double*)calloc(sizeof(double), inp.line_offset);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 0; i < inp.line_offset; ++i)
         {
             send[i] = matrix[i*inp.col_offset];
@@ -227,7 +227,7 @@ void send_data(int recv, int direction,double* matrix, input_data inp, MPI_Datat
     if(direction == RIGHT)
     {
         send = (double*)calloc(sizeof(double), inp.line_offset);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 0; i < inp.line_offset; ++i)
         {
             send[i] = matrix[(i*inp.col_offset) + (inp.line_offset-1)];
@@ -245,7 +245,7 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.col_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 1; i < inp.col_offset - 1; ++i)
         {
             matrix[i] = recv[i];
@@ -256,7 +256,7 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.col_offset);      
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 1; i < inp.col_offset - 1; ++i)
         {
             matrix[(inp.col_offset*(inp.line_offset - 1)) + i] = recv[i];
@@ -267,7 +267,7 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.line_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 0; i < inp.line_offset; ++i)
         {
             matrix[(inp.line_offset - 1) + inp.col_offset*i] = recv[i];
@@ -279,7 +279,7 @@ void receive(int sender,int direction,double *matrix, input_data inp, MPI_Dataty
         recv = (double*)calloc(sizeof(double), inp.line_offset);
         MPI_Irecv(recv,1, type, sender, 0, my_grid, req);
         MPI_Wait(req,stat);
-        # pragma omp parallel for num_threads(inp.thread_count)
+        # pragma omp parallel for
         for (int i = 0; i < inp.line_offset; ++i)
         {
             matrix[inp.col_offset*i] = recv[i];
@@ -405,10 +405,6 @@ int main(int argc, char **argv)
     
 
     MPI_Bcast(&(inp),1,input_type,0,my_grid);
-
-    omp_set_num_threads(8);
-    omp_set_dynamic(0);
-    printf("%d\n",omp_get_num_threads());
 
     MPI_Datatype row;
     MPI_Type_contiguous(inp.line_offset, MPI_DOUBLE, &row);
